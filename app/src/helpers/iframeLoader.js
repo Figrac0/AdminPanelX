@@ -11,8 +11,8 @@ HTMLIFrameElement.prototype.load = function (url, callback) {
             callback(error);
         }
     }
-
-    const maxTime = 40000;
+    
+    const maxTime = 60000;
     const interval = 200;
 
     let timerCount = 0;
@@ -22,10 +22,7 @@ HTMLIFrameElement.prototype.load = function (url, callback) {
             const timer = setInterval(function () {
                 if (!iframe) return clearInterval(timer);
                 timerCount++;
-                if (
-                    iframe.contentDocument &&
-                    iframe.contentDocument.readyState === "complete"
-                ) {
+                if (iframe.contentDocument && iframe.contentDocument.readyState === "complete") {
                     clearInterval(timer);
                     resolve();
                 } else if (timerCount * interval > maxTime) {
@@ -36,10 +33,7 @@ HTMLIFrameElement.prototype.load = function (url, callback) {
     } else {
         const timer = setInterval(function () {
             if (!iframe) return clearInterval(timer);
-            if (
-                iframe.contentDocument &&
-                iframe.contentDocument.readyState === "complete"
-            ) {
+            if (iframe.contentDocument && iframe.contentDocument.readyState === "complete") {
                 clearInterval(timer);
                 callback();
             } else if (timerCount * interval > maxTime) {
