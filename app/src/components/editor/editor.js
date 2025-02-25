@@ -1,12 +1,14 @@
 import "../../helpers/iframeLoader.js";
-import axios from 'axios';
-import React, {Component} from 'react';
-import DOMHelper from '../../helpers/dom-helper';
-import EditorText from '../editor-text';
-import UIkit from 'uikit';
-import Spinner from '../spinner';
-import ConfirmModal from '../confirm-modal';
-import ChooseModal from '../choose-modal';
+import axios from "axios";
+import React, { Component } from "react";
+import DOMHelper from "../../helpers/dom-helper";
+import EditorText from "../editor-text";
+import UIkit from "uikit";
+import Spinner from "../spinner";
+import ConfirmModal from "../confirm-modal";
+import ChooseModal from "../choose-modal";
+import Panel from "../panel";
+import EditorMeta from "../editor-meta";
 
 export default class Editor extends Component {
     constructor() {
@@ -14,14 +16,16 @@ export default class Editor extends Component {
         this.currentPage = "index.html";
         this.state = {
             pageList: [],
+            backupsList: [],
             newPageName: "",
-            loading: true
-        }
-        this.createNewPage = this.createNewPage.bind(this);
+            loading: true,
+        };
+        // this.createNewPage = this.createNewPage.bind(this);
         this.isLoading = this.isLoading.bind(this);
         this.isLoaded = this.isLoaded.bind(this);
         this.save = this.save.bind(this);
         this.init = this.init.bind(this);
+        this.restoreBackup = this.restoreBackup.bind(this);
     }
 
     componentDidMount() {
@@ -33,9 +37,10 @@ export default class Editor extends Component {
             e.preventDefault();
         }
         this.isLoading();
-        this.iframe = document.querySelector('iframe');
+        this.iframe = document.querySelector("iframe");
         this.open(page, this.isLoaded);
         this.loadPageList();
+        this.loadBackupsList();
     }
 
     open(page, cb) {
@@ -43,40 +48,48 @@ export default class Editor extends Component {
 
         axios
             .get(`../${page}?rnd=${Math.random()}`)
-            .then(res => DOMHelper.parseStrToDOM(res.data))
+            .then((res) => DOMHelper.parseStrToDOM(res.data))
             .then(DOMHelper.wrapTextNodes)
-            .then(dom => {
+            .then((dom) => {
                 this.virtualDom = dom;
                 return dom;
             })
             .then(DOMHelper.serializeDOMToString)
-            .then(html => axios.post("./api/saveTempPage.php", {html}))
+            .then((html) => axios.post("./api/saveTempPage.php", { html }))
             .then(() => this.iframe.load("../yfuy1g221ub_hhg44.html"))
             .then(() => axios.post("./api/deleteTempPage.php"))
             .then(() => this.enableEditing())
             .then(() => this.injectStyles())
             .then(cb);
+
+        this.loadBackupsList();
     }
 
-    save(onSuccess, onError) {
+    async save(onSuccess, onError) {
         this.isLoading();
         const newDom = this.virtualDom.cloneNode(this.virtualDom);
         DOMHelper.unwrapTextNodes(newDom);
         const html = DOMHelper.serializeDOMToString(newDom);
-        axios
-            .post("./api/savePage.php", {pageName: this.currentPage, html})
+        await axios
+            .post("./api/savePage.php", { pageName: this.currentPage, html })
             .then(onSuccess)
             .catch(onError)
             .finally(this.isLoaded);
+
+        this.loadBackupsList();
     }
 
     enableEditing() {
-        this.iframe.contentDocument.body.querySelectorAll("text-editor").forEach(element => {
-            const id = element.getAttribute("nodeid");
-            const virtualElement = this.virtualDom.body.querySelector(`[nodeid="${id}"]`);
+        this.iframe.contentDocument.body
+            .querySelectorAll("text-editor")
+            .forEach((element) => {
+                const id = element.getAttribute("nodeid");
+                const virtualElement = this.virtualDom.body.querySelector(
+                    `[nodeid="${id}"]`
+                );
 
-            new EditorText(element, virtualElement);
-        });
+                new EditorText(element, virtualElement);
+            });
     }
 
     injectStyles() {
@@ -97,56 +110,107 @@ export default class Editor extends Component {
     loadPageList() {
         axios
             .get("./api/pageList.php")
-            .then(res => this.setState({pageList: res.data}))
+            .then((res) => this.setState({ pageList: res.data }));
     }
 
-    createNewPage() {
-        axios
-            .post("./api/createNewPage.php", {"name": this.state.newPageName})
-            .then(this.loadPageList())
-            .catch(() => alert("Страница уже существует!"));
+    loadBackupsList() {
+        axios.get("./backups/backups.json").then((res) =>
+            this.setState({
+                backupsList: res.data.filter((backup) => {
+                    return backup.page === this.currentPage;
+                }),
+            })
+        );
+    }
+    restoreBackup(e, backup) {
+        if (e) {
+            e.preventDefault();
+        }
+        UIkit.modal
+            .confirm(
+                "Вы действительно хотите восстановить страницу из этой резервной копии? Все несохраненные данные будут потеряны!",
+                { labels: { ok: "Восстановить", cancel: "Отмена" } }
+            )
+            .then(() => {
+                this.isLoading();
+                return axios.post("./api/restoreBackup.php", {
+                    page: this.currentPage,
+                    file: backup,
+                });
+            })
+            .then(() => {
+                this.open(this.currentPage, this.isLoaded);
+            });
     }
 
-    deletePage(page) {
-        axios
-            .post("./api/deletePage.php", {"name": page})
-            .then(this.loadPageList())
-            .catch(() => alert("Страницы не существует!"));
-    }
+    // createNewPage() {
+    //     axios
+    //         .post("./api/createNewPage.php", { name: this.state.newPageName })
+    //         .then(this.loadPageList())
+    //         .catch(() => alert("Страница уже существует!"));
+    // }
+
+    // deletePage(page) {
+    //     axios
+    //         .post("./api/deletePage.php", { name: page })
+    //         .then(this.loadPageList())
+    //         .catch(() => alert("Страницы не существует!"));
+    // }
 
     isLoading() {
         this.setState({
-            loading: true
-        })
+            loading: true,
+        });
     }
 
     isLoaded() {
         this.setState({
-            loading: false
-        })
+            loading: false,
+        });
     }
 
     render() {
-        const {loading, pageList} = this.state;
+        const { loading, pageList, backupsList } = this.state;
         const modal = true;
         let spinner;
-        
-        loading ? spinner = <Spinner active/> : spinner = <Spinner />
+
+        loading ? (spinner = <Spinner active />) : (spinner = <Spinner />);
 
         return (
             <>
-                <iframe src={this.currentPage} frameBorder="0"></iframe>
-                
+                <iframe src="" frameBorder="0"></iframe>
+
                 {spinner}
 
-                <div className="panel">
-                    <button className="uk-button uk-button-primary uk-margin-small-right" uk-toggle="target: #modal-open">Открыть</button>
-                    <button className="uk-button uk-button-primary" uk-toggle="target: #modal-save">Опубликовать</button>
-                </div>
-                
-                <ConfirmModal modal={modal}  target={'modal-save'} method={this.save}/>
-                <ChooseModal modal={modal}  target={'modal-open'} data={pageList} redirect={this.init}/>
+                <Panel />
+
+                <ConfirmModal
+                    modal={modal}
+                    target={"modal-save"}
+                    method={this.save}
+                />
+                <ChooseModal
+                    modal={modal}
+                    target={"modal-open"}
+                    data={pageList}
+                    redirect={this.init}
+                />
+                <ChooseModal
+                    modal={modal}
+                    target={"modal-backup"}
+                    data={backupsList}
+                    redirect={this.restoreBackup}
+                />
+                {this.virtualDom ? (
+                    <EditorMeta
+                        modal={modal}
+                        target={"modal-meta"}
+                        virtualDom={this.virtualDom}
+                    />
+                ) : (
+                    false
+                )}
             </>
-        )
+        );
     }
 }
