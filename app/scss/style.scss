@@ -33,7 +33,7 @@ iframe {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.4);
+    background-color: rgba(0,0,0, .4);
     visibility: hidden;
     opacity: 0;
     transition: 0.8s all;
@@ -47,6 +47,28 @@ iframe {
     }
 }
 
-.backup_descr {
-    color: rgb(18, 49, 49);
+.login-container {
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background-color: rgba(black, .5);
+    z-index: 2;
+
+    .login {
+        width: 600px;
+        padding: 30px;
+        background-color: #fff;
+        border-radius: 4px;
+    }
+    .login-error {
+        display: block;
+        color: red;
+        margin-top: 10px;
+    }
 }
+

@@ -1,45 +1,40 @@
-import axios from "axios";
+import axios from 'axios';
 
 export default class EditorImages {
-    constructor(
-        element,
-        virtualElement,
-        ...[isLoading, isLoaded, showNotifications]
-    ) {
+    constructor(element, virtualElement, ...[isLoading, isLoaded, showNotifications]) {
         this.element = element;
         this.virtualElement = virtualElement;
-        this.element.addEventListener("click", () => this.onClick());
-        this.imgUpLoader = document.querySelector("#img-upload");
+        
+        this.element.addEventListener('click', () => this.onClick());
+        this.imgUploader = document.querySelector("#img-upload");
         this.isLoading = isLoading;
         this.isLoaded = isLoaded;
         this.showNotifications = showNotifications;
     }
 
     onClick() {
-        this.imgUpLoader.click();
-        this.imgUpLoader.addEventListener("change", () => {
-            if (this.imgUpLoader.files && this.imgUpLoader.files[0]) {
+        this.imgUploader.click();
+        this.imgUploader.addEventListener('change', () => {
+            if (this.imgUploader.files && this.imgUploader.files[0]) {
                 let formData = new FormData();
-                formData.append("image", this.imgUpLoader.files[0]);
+                formData.append("image", this.imgUploader.files[0]);
                 this.isLoading();
                 axios
-                    .post("./api/uploadImage.php", formData, {
+                    .post('./api/uploadImage.php', formData, {
                         headers: {
-                            "Content-Type": "multipart/form-data",
-                        },
+                            "Content-Type": "multipart/form-data"
+                        }
                     })
                     .then((res) => {
-                        this.virtualElement.src =
-                            this.element.src = `./img/${res.data.src}`;
+                        this.virtualElement.src = this.element.src = `./img/${res.data.src}`;
                     })
-                    .catch(() =>
-                        this.showNotifications("Ошибка сохранения", "danger")
-                    )
+                    .catch(() => this.showNotifications("Ошибка сохранения", "danger"))
                     .finally(() => {
-                        this.imgUpLoader.value = "";
+                        this.imgUploader.value = "";
                         this.isLoaded();
-                    });
+                    })
             }
         });
     }
+
 }
